@@ -14,9 +14,8 @@ local partyUpdatedRemote = remotes:WaitForChild("PartyUpdated")
 local partyListUpdatedRemote = remotes:WaitForChild("PartyListUpdated")
 
 local MAX_PARTY_SIZE = 4
-local activeParties = {} -- Dictionary: hostUserId -> {Host = Player, Members = {Player}}
+local activeParties = {} 
 
--- Helper to find a player's party
 local function getPlayerParty(player)
 	for hostId, party in pairs(activeParties) do
 		for _, member in ipairs(party.Members) do
@@ -33,12 +32,12 @@ local function broadcastPartyUpdate(party)
 	for _, member in ipairs(party.Members) do
 		table.insert(membersData, {UserId = member.UserId, Name = member.Name})
 	end
-	
+
 	local partyData = {
 		HostId = party.Host.UserId,
 		Members = membersData
 	}
-	
+
 	for _, member in ipairs(party.Members) do
 		partyUpdatedRemote:FireClient(member, partyData)
 	end
@@ -48,12 +47,12 @@ createPartyRemote.OnServerInvoke = function(player)
 	if getPlayerParty(player) then
 		return false, "Already in a party"
 	end
-	
+
 	activeParties[player.UserId] = {
 		Host = player,
 		Members = {player}
 	}
-	
+
 	broadcastPartyUpdate(activeParties[player.UserId])
 	partyListUpdatedRemote:FireAllClients()
 	return true
@@ -63,16 +62,16 @@ joinPartyRemote.OnServerInvoke = function(player, hostUserId)
 	if getPlayerParty(player) then
 		return false, "Already in a party"
 	end
-	
+
 	local party = activeParties[hostUserId]
 	if not party then
 		return false, "Party not found"
 	end
-	
+
 	if #party.Members >= MAX_PARTY_SIZE then
 		return false, "Party is full"
 	end
-	
+
 	table.insert(party.Members, player)
 	broadcastPartyUpdate(party)
 	return true
@@ -81,19 +80,20 @@ end
 leavePartyRemote.OnServerInvoke = function(player)
 	local hostId, party = getPlayerParty(player)
 	if not party then return false, "Not in a party" end
-	
+
 	if player == party.Host then
-		-- Disband party
+
 		local members = party.Members
 		activeParties[hostId] = nil
 		for _, member in ipairs(members) do
 			if member ~= player then
-				partyUpdatedRemote:FireClient(member, nil) -- nil means kicked/disbanded
+				partyUpdatedRemote:FireClient(member, nil) 
+
 			end
 		end
 		partyListUpdatedRemote:FireAllClients()
 	else
-		-- Remove member
+
 		for i, member in ipairs(party.Members) do
 			if member == player then
 				table.remove(party.Members, i)
@@ -108,11 +108,12 @@ end
 kickPlayerRemote.OnServerInvoke = function(player, targetUserId)
 	local party = activeParties[player.UserId]
 	if not party then return false, "You are not the host of a party" end
-	
+
 	for i, member in ipairs(party.Members) do
 		if member.UserId == targetUserId and member ~= player then
 			table.remove(party.Members, i)
-			partyUpdatedRemote:FireClient(member, nil) -- Tell them they are removed
+			partyUpdatedRemote:FireClient(member, nil) 
+
 			broadcastPartyUpdate(party)
 			return true
 		end
@@ -123,48 +124,47 @@ end
 startGameRemote.OnServerInvoke = function(player)
 	local party = activeParties[player.UserId]
 	if not party then return false, "You are not the host of a party" end
-	
+
 	local members = party.Members
 	local isStudio = RunService:IsStudio()
 	local success = true
 	local err = nil
-	
+
 	if isStudio then
-		-- Mock Teleport for Studio
+
 		print("Mocking teleport in Studio for Party Host: " .. player.Name)
-		local mockSpawnLocation = Vector3.new(0, 50, 0) -- Teleport slightly above the baseplate
+		local mockSpawnLocation = Vector3.new(0, 50, 0) 
+
 		for _, member in ipairs(members) do
 			if member.Character and member.Character.PrimaryPart then
 				member.Character:PivotTo(CFrame.new(mockSpawnLocation + Vector3.new(math.random(-5, 5), 0, math.random(-5, 5))))
 			end
 		end
 	else
-		-- We use game.PlaceId by default as discussed.
+
 		local placeId = game.PlaceId
 		if placeId == 0 then
 			return false, "PlaceId is 0. Publish the game to test TeleportService."
 		end
-		
+
 		success, err = pcall(function()
-			-- In a real game we might reserve a server or teleport to another place.
-			-- For simplicity, we just teleport them to the same place.
+
 			local reserveCode = TeleportService:ReserveServer(placeId)
 			TeleportService:TeleportToPrivateServer(placeId, reserveCode, members)
 		end)
-		
+
 		if not success then
 			warn("Teleport failed: ", err)
 			return false, "Teleport failed"
 		end
 	end
-	
-	-- Disband party after starting game to prevent players getting stuck in UI
+
 	activeParties[player.UserId] = nil
 	for _, member in ipairs(members) do
 		partyUpdatedRemote:FireClient(member, nil)
 	end
 	partyListUpdatedRemote:FireAllClients()
-	
+
 	return true
 end
 
