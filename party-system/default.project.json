@@ -1,0 +1,21 @@
+{
+  "name": "PartySystem",
+  "tree": {
+    "$className": "DataModel",
+    "ServerScriptService": {
+      "$className": "ServerScriptService",
+      "PartyServer": {
+        "$path": "src/Server/PartyServer.server.lua"
+      }
+    },
+    "StarterPlayer": {
+      "$className": "StarterPlayer",
+      "StarterPlayerScripts": {
+        "$className": "StarterPlayerScripts",
+        "PartyClient": {
+          "$path": "src/Client/PartyClient.client.lua"
+        }
+      }
+    }
+  }
+}
