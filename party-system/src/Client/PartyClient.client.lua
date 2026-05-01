@@ -24,8 +24,9 @@ local matchmakingZone = workspace:WaitForChild("MatchmakingZone", 10)
 local DETECTION_RADIUS = 10
 
 local inZone = false
-local currentParty = nil -- nil or the party data table
-local currentPanel = "Main" -- Main, Lobby, Join
+local currentParty = nil 
+
+local currentPanel = "Main" 
 
 local function updateUIVisibility()
 	if not inZone then
@@ -35,7 +36,7 @@ local function updateUIVisibility()
 		joinFrame.Visible = false
 		return
 	end
-	
+
 	PartyUI.Enabled = true
 	mainFrame.Visible = (currentPanel == "Main")
 	lobbyFrame.Visible = (currentPanel == "Lobby")
@@ -44,23 +45,23 @@ end
 
 local function populateMembersList()
 	local membersList = lobbyFrame.MembersList
-	-- Clear existing
+
 	for _, child in ipairs(membersList:GetChildren()) do
 		if child:IsA("Frame") then child:Destroy() end
 	end
-	
+
 	if not currentParty then return end
-	
+
 	local isHost = (currentParty.HostId == player.UserId)
 	lobbyFrame.StartGameBtn.Visible = isHost
 	lobbyFrame.LeavePartyBtn.Text = isHost and "Close Room" or "Leave Party"
-	
+
 	for i, member in ipairs(currentParty.Members) do
 		local f = Instance.new("Frame")
 		f.Size = UDim2.new(1, 0, 0, 40)
 		f.BackgroundColor3 = Color3.fromRGB(60, 60, 60)
 		f.BorderSizePixel = 0
-		
+
 		local text = Instance.new("TextLabel")
 		text.Size = UDim2.new(1, isHost and -80 or 0, 1, 0)
 		text.BackgroundTransparency = 1
@@ -69,7 +70,7 @@ local function populateMembersList()
 		text.Font = Enum.Font.Gotham
 		text.TextSize = 16
 		text.Parent = f
-		
+
 		if isHost and member.UserId ~= player.UserId then
 			local kickBtn = Instance.new("TextButton")
 			kickBtn.Size = UDim2.new(0, 70, 0, 30)
@@ -81,12 +82,12 @@ local function populateMembersList()
 			kickBtn.TextSize = 14
 			kickBtn.Parent = f
 			Instance.new("UICorner").Parent = kickBtn
-			
+
 			kickBtn.MouseButton1Click:Connect(function()
 				kickPlayerRemote:InvokeServer(member.UserId)
 			end)
 		end
-		
+
 		f.Parent = membersList
 	end
 end
@@ -96,14 +97,14 @@ local function refreshJoinList()
 	for _, child in ipairs(partiesList:GetChildren()) do
 		if child:IsA("Frame") then child:Destroy() end
 	end
-	
+
 	local parties = getPartiesRemote:InvokeServer()
 	for _, party in ipairs(parties) do
 		local f = Instance.new("Frame")
 		f.Size = UDim2.new(1, 0, 0, 40)
 		f.BackgroundColor3 = Color3.fromRGB(60, 60, 60)
 		f.BorderSizePixel = 0
-		
+
 		local text = Instance.new("TextLabel")
 		text.Size = UDim2.new(1, -100, 1, 0)
 		text.BackgroundTransparency = 1
@@ -112,7 +113,7 @@ local function refreshJoinList()
 		text.Font = Enum.Font.Gotham
 		text.TextSize = 16
 		text.Parent = f
-		
+
 		local joinBtn = Instance.new("TextButton")
 		joinBtn.Size = UDim2.new(0, 90, 0, 30)
 		joinBtn.Position = UDim2.new(1, -95, 0.5, -15)
@@ -123,21 +124,20 @@ local function refreshJoinList()
 		joinBtn.TextSize = 14
 		joinBtn.Parent = f
 		Instance.new("UICorner").Parent = joinBtn
-		
+
 		joinBtn.MouseButton1Click:Connect(function()
 			local success, err = joinPartyRemote:InvokeServer(party.HostId)
 			if success then
-				-- Server will fire PartyUpdated, changing our view to Lobby
+
 			else
 				warn(err)
 			end
 		end)
-		
+
 		f.Parent = partiesList
 	end
 end
 
--- Hook up buttons
 mainFrame.CreatePartyBtn.MouseButton1Click:Connect(function()
 	local success, err = createPartyRemote:InvokeServer()
 	if not success then warn(err) end
@@ -167,11 +167,10 @@ lobbyFrame.StartGameBtn.MouseButton1Click:Connect(function()
 	if not success then
 		warn(err)
 	end
-	-- We always reset the text in case of failure or before closing
+
 	lobbyFrame.StartGameBtn.Text = "Start Game"
 end)
 
--- Server Events
 partyUpdatedRemote.OnClientEvent:Connect(function(partyData)
 	currentParty = partyData
 	if currentParty then
@@ -189,7 +188,6 @@ partyListUpdatedRemote.OnClientEvent:Connect(function()
 	end
 end)
 
--- Distance Detection
 RunService.Heartbeat:Connect(function()
 	local char = player.Character
 	if not char or not char.PrimaryPart or not matchmakingZone then
@@ -199,14 +197,13 @@ RunService.Heartbeat:Connect(function()
 		end
 		return
 	end
-	
-	-- Flatten Y axis to ignore height
+
 	local pPos = char.PrimaryPart.Position
 	local zPos = matchmakingZone.Position
 	local dist = Vector2.new(pPos.X, pPos.Z) - Vector2.new(zPos.X, zPos.Z)
-	
+
 	local nowInZone = dist.Magnitude <= DETECTION_RADIUS
-	
+
 	if nowInZone ~= inZone then
 		inZone = nowInZone
 		updateUIVisibility()
